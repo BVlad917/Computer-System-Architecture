@@ -1,0 +1,69 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     4                                  global start        
+     5                                  
+     6                                  ; declare external functions needed by our program
+     7                                  extern exit               ; tell nasm that exit exists even if we won't be defining it
+     8                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+     9                                                            ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    10                                  
+    11                                  
+    12                                  ; 14) A byte string S is given. Obtain the string D1 which contains all the positive numbers of S and
+    13                                  ; the string D2 which contains all the negative numbers of S.
+    14                                  ; Example:
+    15                                  ;       S: 1, 3, -2, -5, 3, -8, 5, 0
+    16                                  ;       D1: 1, 3, 3, 5, 0
+    17                                  ;       D2: -2, -5, -8                         
+    18                                                            
+    19                                  segment data use32 class=data
+    20 00000000 0103FEFB03F80500            s db 1, 3, -2, -5, 3, -8, 5, 0
+    21                                      len equ $-s
+    22 00000008 <res 00000008>              d1 resb len
+    23 00000010 <res 00000008>              d2 resb len
+    24                                      
+    25                                  ; Note: Some bytes out of D1 and D2 will remain unused, since we
+    26                                  ; declare D1 and D2 to be the same length as S. There's nothing we can do
+    27                                  ; about this, since we don't know the right length of D1 and D2 at the start
+    28                                  ; of the program, so just to be sure we declare them with the same length as S
+    29                                      
+    30                                  segment code use32 class=code
+    31                                      start:
+    32                                          
+    33 00000000 B908000000                      mov ecx, len
+    34 00000005 E320                            jecxz dont_enter
+    35                                          
+    36 00000007 BE[00000000]                    mov esi, s ; the pointer that will be used to iterate through S
+    37 0000000C BF[08000000]                    mov edi, d1 ; the pointer that will be used to iterate through D1 (for positive numbers)
+    38 00000011 BA[10000000]                    mov edx, d2 ; the pointer that will be used to iterate through D2 (for negative numbers)
+    39                                          
+    40                                          my_loop:
+    41 00000016 8A06                                mov al, byte [esi]
+    42 00000018 3C00                                cmp al, 0
+    43 0000001A 7C05                                jl negative_number
+    44                                                  ; If the above jump is not executed (so we're here), that means that the current number is positive (or zero)
+    45 0000001C 8807                                    mov [edi], al
+    46 0000001E 47                                      inc edi
+    47                                                  ; Skip the instructions for negative numbers with 
+    48                                                  ; an unconditional jump
+    49 0000001F EB03                                    jmp skip_negative
+    50                                          
+    51                                              
+    52                                              negative_number:
+    53                                                  ; We enter this only if the number is negative
+    54 00000021 8802                                    mov [edx], al
+    55 00000023 42                                      inc edx
+    56                                              
+    57                                              skip_negative:
+    58                                                  ; We're here in the case that we had a positive number
+    59                                              
+    60 00000024 46                                  inc esi; Go to the next byte of S
+    61                                              
+    62 00000025 E2EF                            loop my_loop
+    63                                          
+    64                                          dont_enter:
+    65                                              ; We jump here if the length of the input byte string S is zero
+    66                                              ; This is done to avoid entering the loop if the length of S is zero
+    67                                          
+    68 00000027 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+    69 00000029 FF15[00000000]                  call    [exit]       ; call exit to terminate the program
